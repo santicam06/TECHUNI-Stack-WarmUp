@@ -1,6 +1,6 @@
 # AGENTS.md: AI Engineer Technical Warm-Up Lab Manual
 **Target Role:** Ingeniero/a de Inteligencia Artificial (TECH Universidad - Bogotá)  
-**Target Stack:** Python, LangChain, LangGraph, Anthropic Claude, PyTorch, TensorFlow, Azure AI Foundry  
+**Target Stack:** Python, LangChain, LangGraph, Claude Sonnet 5.5 (OpenRouter), ChromaDB, PyTorch, TensorFlow, Azure AI Foundry  
 **Execution Environment:** Google Colab integrated with VS Code  
 **Instruction Mode:** Active Learning, Socratic Tutoring, Manual Code Writing  
 
@@ -47,20 +47,24 @@ To rebuild raw syntax memory, you must turn off inline code completion:
 ### 0.4 Package Installation & API Secret Configuration
 Execute the following setup commands inside your notebook setup cell:
 
-```bash
-# Cell 0.4: Master Dependency Installation
-!pip install --quiet \
-    langchain==0.3.7 \
-    langgraph==0.2.45 \
-    langchain-anthropic==0.3.0 \
-    langchain-community==0.3.7 \
-    torch==2.5.1 \
-    transformers==4.46.0 \
-    faiss-cpu==1.9.0 \
-    sentence-transformers==3.3.0 \
-    pydantic==2.9.2 \
-    azure-ai-inference==1.0.0b1 \
-    azure-ai-evaluation==1.1.0
+```python
+# Cell 0.4: Master Dependency Installation (Up-to-date 2026 releases)
+packages = [
+    "langchain>=1.4.0",
+    "langgraph>=1.2.0",
+    "langchain-openai>=1.7.0",
+    "langchain-community>=0.4.0",
+    "langchain-huggingface>=1.2.0",
+    "langchain-text-splitters>=1.1.3",
+    "chromadb>=1.5.0",
+    "langchain-chroma>=1.1.0",
+    "sentence-transformers>=6.2.0",
+    "pydantic>=2.10.0",
+    "azure-ai-projects>=1.0.0",
+    "azure-ai-evaluation>=1.18.0",
+]
+
+%pip install --quiet -U {" ".join(packages)}
 ```
 
 To secure API credentials without hardcoding plain text secrets:
@@ -68,9 +72,9 @@ To secure API credentials without hardcoding plain text secrets:
 import os
 from getpass import getpass
 
-# Prompt user safely for secrets
-if "ANTHROPIC_API_KEY" not in os.environ:
-    os.environ["ANTHROPIC_API_KEY"] = getpass("Enter Anthropic API Key: ")
+# Prompt user safely for secrets (OpenRouter or direct Anthropic)
+if "OPENROUTER_API_KEY" not in os.environ and "ANTHROPIC_API_KEY" not in os.environ:
+    os.environ["OPENROUTER_API_KEY"] = getpass("Enter OpenRouter API Key: ")
 
 # (Optional for Day 4) Azure AI Credentials
 if "AZURE_AI_FOUNDRY_ENDPOINT" not in os.environ:
@@ -99,15 +103,15 @@ if "AZURE_AI_FOUNDRY_ENDPOINT" not in os.environ:
 * **Tutor Guidance:** Explain to the user why `RecursiveCharacterTextSplitter` is preferred over naive character splitting (it attempts to split on paragraphs `\n\n`, lines `\n`, and spaces ` ` in order to keep sentences intact).
 * **Expected Output:** A Python `list` of `Document` objects with populated `page_content` and `metadata` dictionaries.
 
-#### Step 1.2.2: Embedding Generation and FAISS Vector Storage
-* **Task:** Initialize an embedding model (e.g., `HuggingFaceEmbeddings` with model `all-MiniLM-L6-v2`) and index your document chunks into an in-memory **FAISS** (Facebook AI Similarity Search) vector store.
-* **Resources Needed:** `langchain_community.embeddings.HuggingFaceEmbeddings`, `langchain_community.vectorstores.FAISS`.
+#### Step 1.2.2: Embedding Generation and ChromaDB Vector Storage
+* **Task:** Initialize an embedding model (e.g., `HuggingFaceEmbeddings` with model `all-MiniLM-L6-v2`) and index your document chunks into an in-memory or local **ChromaDB** vector store.
+* **Resources Needed:** `langchain_huggingface.HuggingFaceEmbeddings`, `langchain_chroma.Chroma`.
 * **Tutor Guidance:** Explain vector space representation. Ask the user how chunk size impacts vector resolution (smaller chunks capture granular facts; larger chunks preserve context but dilute specific details).
-* **Expected Output:** A compiled `FAISS` vector store instance capable of executing `.similarity_search_with_score()`.
+* **Expected Output:** An instantiated `Chroma` vector store instance capable of executing `.similarity_search_with_score()`.
 
 #### Step 1.2.3: Two-Stage Retrieval with Cross-Encoder Reranking
 * **Task:** Implement a custom retrieval function `retrieve_and_rerank(query: str, top_k_initial: int = 10, top_k_final: int = 3)`.
-  1. Retrieve 10 candidates using FAISS similarity search.
+  1. Retrieve 10 candidates using Chroma similarity search.
   2. Use `sentence_transformers.CrossEncoder` (model: `cross-encoder/ms-marco-MiniLM-L-6-v2`) to compute explicit relevance scores between `(query, chunk_text)`.
   3. Sort and return the top 3 reranked context strings.
 * **Resources Needed:** `sentence_transformers.CrossEncoder`.
@@ -153,9 +157,9 @@ The user must present their completed `retrieve_and_rerank` code. The tutor agen
 
 ### 2.2 Step-by-Step Breakdown & Practical Tasks
 
-#### Step 2.2.1: Anthropic Claude Model Setup and Structured Tool Definition
-* **Task:** Instantiate `ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)`. Define a custom LangChain tool `@tool` named `search_tech_catalog` that wraps the Day 1 RAG retrieval function.
-* **Resources Needed:** `langchain_anthropic.ChatAnthropic`, `langchain_core.tools.tool`.
+#### Step 2.2.1: Claude Sonnet 5.5 Setup (via OpenRouter) and Structured Tool Definition
+* **Task:** Instantiate `ChatOpenAI(model="anthropic/claude-sonnet-5.5", api_key=os.environ["OPENROUTER_API_KEY"], base_url="https://openrouter.ai/api/v1", temperature=0)`. Define a custom LangChain tool `@tool` named `search_tech_catalog` that wraps the Day 1 RAG retrieval function.
+* **Resources Needed:** `langchain_openai.ChatOpenAI`, `langchain_core.tools.tool`.
 * **Tutor Guidance:** Explain **Tool Calling** (Function Calling). The LLM does not execute code directly; it outputs a structured JSON block requesting a tool execution, which your application runtime intercept and executes.
 * **Expected Output:** A callable tool object with docstrings that Claude uses to auto-generate tool schemas.
 
